@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import os
 os.getcwd()
+
 getdat = pd.read_csv(r"C:/temp/mdata.csv")
 
 def ML_50trades():
@@ -18,7 +19,8 @@ def ML_50trades():
     reldat = getdat.iloc[:,[0,
                             7,8,10,11,12,
                             13,14]]
-
+    getval = reldat.iloc[1,0]
+    reldat.at[0,"Market ID"] = getval
 
     reldat = pd.concat([reldat.drop(' Prediction', axis=1), pd.get_dummies(reldat[' Prediction'], drop_first=True)], axis=1)
     reldat.rename(columns = {" YES":"Prediction"}, 
@@ -64,7 +66,7 @@ def ML_50trades():
     #                                                   1: "Probability_class1"})],
     #                    axis = 1)
     
-    print(proba_class1)
+    return proba_class1
 
 ML_50trades()
 # output.to_csv(r"Downloads/sample_output.csv")

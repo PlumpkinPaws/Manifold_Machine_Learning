@@ -6,7 +6,8 @@ import {
 } from './api.js';
 
 import {
-    createWriteStream
+    createWriteStream,
+    createReadStream
 } from 'fs';
 
 import fetch from 'node-fetch'
@@ -89,13 +90,13 @@ for (let i = 0; i < markets.length && !(mode=="sample" && examplesCollected>=1);
                     stream2.close();
                     stream2.destroy();
 
-                    let rr = fs.createReadStream("/temp/mdata.csv");
-                    rr.on('readable', () => {
-                        console.log(`readable: ${rr.read()}`);
-                    });
-                    rr.on('end', () => {
-                        console.log('end');
-                    });
+                    // let rr = createReadStream("/temp/mdata.csv");
+                    // rr.on('readable', () => {
+                    //     console.log(`readable: ${rr.read()}`);
+                    // });
+                    // rr.on('end', () => {
+                    //     console.log('end');
+                    // });
 
                     let prediction= stripOutput(await fetch("http://localhost:3000").then((res)=>{return res.text();}));
 

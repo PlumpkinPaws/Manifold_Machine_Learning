@@ -2,7 +2,7 @@
 import fetch from 'node-fetch'
 
 
-const yourKey = process.env.APIKEY;
+const yourKey = process.env.RUNIAPI;
 const API_URL = "https://manifold.markets/api/v0";
 
 
