@@ -2,7 +2,8 @@ import {
     getAllMarkets,
     getUserById,
     getFullMarket,
-    placeBet
+    placeBet,
+    cancelBet
 } from './api.js';
 
 import {
@@ -39,8 +40,33 @@ function sanitizeFilename(name) {
 function stripOutput(name) {
     return name
         .replace("[", "")
-        .replace("]", "");
+        .replace("]", "")
+        .replace(/\r/g, "")
+        .replace(/\n/g, "");
 }
+
+function isUnfilledLimitOrder(bet) {
+
+    if (bet.amount == 0) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+function roundToPercent(limit) {
+
+    return parseFloat(limit.toFixed(2));
+}
+
+class PythonError extends Error {
+    constructor(message) {
+        super(message); // (1)
+        this.name = "PythonError"; // (2)
+    }
+}
+
 
 const stream = createWriteStream("/temp/mdata.csv", { flag: "a" });
 
@@ -74,13 +100,19 @@ let labels =
 stream.write(labels);
 
 
-for (let i = 0; i < markets.length && !(mode=="sample" && examplesCollected>=1); i++) {
+for (let i = 0; i < markets.length && !(mode == "sample" && examplesCollected >= 1); i++) {
 
     if (markets[i].outcomeType === "BINARY") {
 
         if (mode === "bet" && markets[i].isResolved == false) {
             try {
                 let mkt = await getFullMarket(markets[i].id);
+
+                if (mkt.bets.length > TRADES_TO_COLLECT && mkt.bets.length < TRADES_TO_COLLECT * 3) {
+                    for (let b in mkt.bets) {
+                        isUnfilledLimitOrder(mkt.bets[b])
+                    }
+                }
                 if (mkt.bets.length == TRADES_TO_COLLECT) {
                     console.log(mkt.question);
                     let stream2 = createWriteStream("/temp/mdata.csv", { flag: "w" });
@@ -98,28 +130,37 @@ for (let i = 0; i < markets.length && !(mode=="sample" && examplesCollected>=1);
                     //     console.log('end');
                     // });
 
-                    let prediction= stripOutput(await fetch("http://localhost:3000").then((res)=>{return res.text();}));
+                    let pOutput = await fetch("http://localhost:3000").then((res) => { return res.text(); });
+                    if (pOutput == "") { throw (new PythonError("python component provided no return value")); }
+                    let prediction = stripOutput(pOutput);
 
-                    console.log(prediction+" vs. "+mkt.probability);
+                    console.log(prediction + " vs. " + mkt.probability);
 
-                    if (Math.abs(prediction-mkt.probability)>.05){
-                    let bet = {
-                        contractId: `${mkt.id}`,
-                        outcome: null,
-                        amount: 10
+                    if (Math.abs(prediction - mkt.probability) > .05) {
+                        let bet = {
+                            contractId: `${mkt.id}`,
+                            outcome: null,
+                            amount: 100,
+                            limitProb: null
+                        }
+                        if (prediction > mkt.probability) {
+                            bet.outcome = "YES";
+                            bet.limitProb = prediction - ((prediction - mkt.probability) / 2);
+                        }
+                        else if (prediction < mkt.probability) {
+                            bet.outcome = "NO";
+                            bet.limitProb = (prediction - 0) + ((mkt.probability - prediction) / 2);
+                        }
+                        bet.limitProb = roundToPercent(bet.limitProb);
+                        console.log(bet);
+                        await placeBet(bet).then((resjson) => { console.log(resjson); cancelBet(resjson.betId); return resjson; });
+                       
                     }
-                    if (prediction>mkt.probability){bet.outcome="YES";}
-                    else {bet.outcome="NO";}
-                    console.log(bet);
-                    //await placeBet(bet).then((resjson) => { console.log(resjson); });
-
-                }
-
-
                 }
             }
             catch (e) {
-                console.log(e);
+                throw (e);
+                //console.log(e);
             }
             examplesCollected++;
 
@@ -132,7 +173,6 @@ for (let i = 0; i < markets.length && !(mode=="sample" && examplesCollected>=1);
 
                     await mkt2csv(mkt, stream);
                     examplesCollected++;
-
 
                 }
             } catch (e) {
@@ -148,7 +188,7 @@ for (let i = 0; i < markets.length && !(mode=="sample" && examplesCollected>=1);
 async function mkt2csv(mkt, s) {
 
     let timeOfCollection = 0;
-    if (mkt.bets.length == 0 ) {
+    if (mkt.bets.length == 0) {
         timeOfCollection = mkt.createdTime - 1;
     }
     else if (mkt.bets.length < TRADES_TO_COLLECT) {
@@ -225,33 +265,33 @@ async function mkt2csv(mkt, s) {
             }
         }
 
-    
 
-    
+
+
         stream.write(row.mid + ", "
-    + row.cid + ", "
-    + row.mtime + ", "
-    + row.question + ", "
-    + row.mechanism + ", "
-    //+ row.resolution + ", "
-    //    + mkt.tags+", "
-    + row.user + ", "
-    + row.uage + ", "
-    + row.uprofitmonthly + ", "
-    + row.uprofit + ", "
-    + row.btime + ", "
-    + row.bdirection + ", "
-    + row.bamount + ", "
-    + row.bshares + ", "
-    + row.pbefore + ", "
-    + row.pafter + ", "
-    + row.fees + ", "
-    + row.limit + ", "
-    + row.lordersize + ", "
-    + row.lamount + ", "
-    + row.lshares + ", "
-    + row.lcancelled
-    + "\n"
+            + row.cid + ", "
+            + row.mtime + ", "
+            + row.question + ", "
+            + row.mechanism + ", "
+            //+ row.resolution + ", "
+            //    + mkt.tags+", "
+            + row.user + ", "
+            + row.uage + ", "
+            + row.uprofitmonthly + ", "
+            + row.uprofit + ", "
+            + row.btime + ", "
+            + row.bdirection + ", "
+            + row.bamount + ", "
+            + row.bshares + ", "
+            + row.pbefore + ", "
+            + row.pafter + ", "
+            + row.fees + ", "
+            + row.limit + ", "
+            + row.lordersize + ", "
+            + row.lamount + ", "
+            + row.lshares + ", "
+            + row.lcancelled
+            + "\n"
         );
 
     }

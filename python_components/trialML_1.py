@@ -21,11 +21,17 @@ def ML_50trades():
                             13,14]]
     getval = reldat.iloc[1,0]
     reldat.at[0,"Market ID"] = getval
+    
 
-    reldat = pd.concat([reldat.drop(' Prediction', axis=1), pd.get_dummies(reldat[' Prediction'], drop_first=True)], axis=1)
-    reldat.rename(columns = {" YES":"Prediction"}, 
+    reldat = pd.concat([reldat.drop(' Prediction', axis=1), pd.get_dummies(reldat[' Prediction']
+                                                                           # , drop_first=True
+                                                                           )], axis=1)
+    reldat.rename(columns = {"NO": "todrop", " YES":"Prediction"}, 
                   inplace = True)
-
+    
+    reldat = reldat[['Market ID', ' User Monthly Profits', ' User Profits', ' Amount',
+       ' Shares Purchased', ' Prob Before', ' Prob After', 'Prediction']]
+    
 
 
     reldat["repeats"] = np.tile(np.arange(1,51), len(reldat))[:len(reldat)]
@@ -65,7 +71,7 @@ def ML_50trades():
     #                     pred_probabilities.rename(columns = {0: "Probability_class0",
     #                                                   1: "Probability_class1"})],
     #                    axis = 1)
-    
+    print(proba_class1)
     return proba_class1
 
 ML_50trades()

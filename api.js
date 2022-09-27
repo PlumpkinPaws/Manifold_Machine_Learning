@@ -1,9 +1,9 @@
 
+import 'dotenv/config'
 import fetch from 'node-fetch'
 
-
-const yourKey = process.env.RUNIAPI;
-const API_URL = "https://manifold.markets/api/v0";
+const yourKey = process.env.RUNIAPI; //process.env.RUNIAPI;
+const API_URL = process.env.APIURL;
 
 
 export const getUserById = async  (id) => {
